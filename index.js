@@ -1,7 +1,7 @@
 /*
 - NND-style Chat script for Cytu.be
 - written by biggles- (github.com/deerfarce)
-- version 1.02
+- version 1.021
 - (still in testing, some things will NOT work as they should)
 */
 
@@ -16,10 +16,10 @@
     */
     $('<style />', {
         'class':'head-NNDCSS',
-        text:".videoText {color: white;font-size: 2em;position: absolute;z-index: 1;cursor: default;white-space:nowrap;opacity:0.7;font-family: 'Meiryo', sans-serif;letter-spacing: 4px;user-select: none;text-shadow: 0 -1px #000, 1px 0 #000, 0 1px #000, -1px 0 #000;pointer-events: none}"+
+        text:".videoText {color: white;font-size: 1em;position: absolute;z-index: 1;cursor: default;white-space:nowrap;opacity:0.7;font-family: 'Meiryo', sans-serif;letter-spacing: 0.063em;user-select: none;text-shadow: 0 -0.063em #000, 0.063em 0 #000, 0 0.063em #000, -0.063em 0 #000;pointer-events: none}"+
             ".videoText.moving {transition: right 7.5s linear, left 7.5s linear}"+
             ".videoText.greentext {color: #789922}"+
-            ".videoText img {max-height: 64px;max-width: 64px}"+
+            ".videoText img, .videochatContainer .channel-emote {max-height: 2em!important;max-width: 4em!important;vertical-align: middle!important;display: inline-block!important;transition: none!important;}"+
             ".videoText.shout {color: #f00}"+
             ".modal .left-warning {float: left;padding: 10px 12px;font-size: 13px;color: #ff8f8f}"+
             ".modal .modal-caption {font-size: 13px;text-indent: 35px;color: #8f9cad}"+
@@ -108,7 +108,7 @@
               nnd._fn.save();
             }
         },
-        '_ver':'1.02'
+        '_ver':'1.021'
     };
 
     //init: sets the window's nnd options to their defaults, then calls _fn.updateModal and _fn.save
@@ -163,20 +163,20 @@
 })();
 
 //the magic
-//also ignores messages beginning with $
+//also ignores messages beginning with $ or !
 //TODO: allow users to disable emotes in these messages
 function addScrollingMessage(message, extraClass) {
     if (typeof window.nnd === "undefined") return;
     var opts = window.nnd;
     if (opts.MAX < 1 || isNaN(parseInt(opts.MAX))) opts.MAX = window.nnd.MAX = 100;
     if (opts.enabled && $('#ytapiplayer')[0] && document.visibilityState === "visible") {
-        if (message !== null && typeof message === "string" && message.length > 0 && !(/^\$/.test(message))) {
-            var topOffset = "0px";
+        if (message !== null && typeof message === "string" && message.length > 0 && !(/^[\$\!]/.test(message))) {
+            var topOffset = "0em";
             var frm = 'right';
-            if (message.length > 240) message = message.substring(0,240);
+            //if (message.length > 240) message = message.substring(0,240);
             if (!opts.fromRight) frm = 'left';
             while ($('.videoText').length >= opts.MAX && opts.MAX >= 1) $('.videoText').eq(0).remove();
-            var fontSize = Math.random() * (48.0 - 24.0) + 24.0;
+            var fontSize = 16;
             if (opts.offsetType === 1) topOffset = (Math.random() * 89) + '%'
             else {
                 topOffset = (fontSize * Math.floor(Math.random() * (Math.floor($('#ytapiplayer').height() / fontSize)))) + 'px';
@@ -185,7 +185,7 @@ function addScrollingMessage(message, extraClass) {
                     window.nnd.offsetType = 0;
                 }
             }
-            var $txt = $('<div/>', {'class': 'videoText '+extraClass,style: 'visibility: hidden; top:'+topOffset+'; font-size:'+fontSize+'px'}).append(message);
+            var $txt = $('<div/>', {'class': 'videoText '+extraClass,style: 'visibility: hidden; top:'+topOffset+'; font-size:'+(fontSize/16)+'em'}).append(message);
             $('.videochatContainer').append($txt);
             $txt.css(frm, (0 - $txt.width())+'px');
             $txt.addClass('moving');
