@@ -1,6 +1,6 @@
 /*
 - Niconico Chat script for cytu.be
-- version 1.038
+- version 1.0382
 - (still in testing, some things will NOT work as they should)
 */
 
@@ -35,7 +35,6 @@
     })
 
     let container;
-    let player;
 
     //getopts: returns the window's current nnd object excluding any of its keys beginning with "_"
     //save: stores the return value of getopts as a JSON string in localStorage, in an item named "X_nndOptions" where X is CHANNEL.name
@@ -67,13 +66,13 @@
               
               socket.off('chatMsg', onChatMsg);
               nnd._fn.removeAll();
-              $('.videochatContainer').remove();
+              $('#videochatContainer').remove();
               
               nnd._fn.attachPlayerObserver();
 
               nnd._fn.setupCSS();
               $('.embed-responsive').prepend($('<div/>', {
-                  'class': 'videochatContainer'
+                  'id': 'videochatContainer'
               }));
               socket.on('chatMsg', onChatMsg);
 
@@ -93,8 +92,8 @@
             },
             'attachPlayerObserver':()=>{
               playerResizeObserver.disconnect();
-              playerRect = document.querySelector('#videowrap').getBoundingClientRect();
-              playerResizeObserver.observe(document.querySelector("#videowrap"));
+              playerRect = document.querySelector('#videochatContainer').getBoundingClientRect();
+              playerResizeObserver.observe(document.querySelector("#videochatContainer"));
             },
             'getopts':()=>{
               var tmp = {};
@@ -134,7 +133,7 @@
               } else {
                 for (var i in tmp) {
                   if (nnd.hasOwnProperty(i) && !(/^\_/).test(i))
-                    nnd[i] = tmp[i];
+                      nnd[i] = tmp[i];
                 }
                 nnd._fn.save();
                 nnd._fn.updateModal();
@@ -186,7 +185,7 @@
               nnd._fn.validateAndSetValue('MAX', $('#nnd-maxmsgs'), 1, 125);
               nnd._fn.validateAndSetValue('fontSize', $('#nnd-fontsize'), 1, _defaultFontSize);
               nnd._fn.validateAndSetValue('imageHeight', $('#nnd-imageheight'), 1, _defaultImageHeight);
-              nnd._fn.validateAndSetValue('messageGap', $('#nnd-msggap'), -999, _defaultMessageGap);
+              nnd._fn.validateAndSetValue('messageGap', $('#nnd-msggap'), 0, _defaultMessageGap);
 
               nnd._fn.setFontSize(nnd.fontSize, nnd.imageHeight);
 
@@ -209,9 +208,10 @@
                 text:".videoText {color: white;position: absolute;z-index: 1;cursor: default;white-space:nowrap;font-family: 'Meiryo', sans-serif;letter-spacing: 0.063em;user-select: none;text-shadow: 0 -0.063em #000, 0.063em 0 #000, 0 0.063em #000, -0.063em 0 #000;pointer-events: none}"+
                     ".videoText.moving {transition: transform "+_scrollDuration+"s linear; will-change: transform}"+
                     ".videoText.greentext {color: #789922}"+
-                    ".videoText img, .videochatContainer .channel-emote {box-shadow: none!important; vertical-align: middle!important;display: inline-block!important;transition: none!important;}"+
+                    ".videoText img, #videochatContainer .channel-emote {box-shadow: none!important; vertical-align: middle!important;display: inline-block!important;transition: none!important;}"+
                     ".videoText.shout {color: #f00}"+
-                    ".videochatContainer, .videoText {z-index: 15}"+
+                    "#videochatContainer, .videoText {z-index: 15}"+
+                    "#videochatContainer {width: 100%;height: 100%;position: absolute;pointer-events: none;}"+
                     ".modal .left-warning {float: left;padding: 10px 12px;font-size: 13px;color: #ff8f8f}"+
                     ".modal .modal-caption {font-size: 13px;text-indent: 35px;color: #8f9cad}"+
                     "#nndSettingsWrap .radio label {display: block;color: #c4ccd8}"+
@@ -235,12 +235,11 @@
             },
             'placeMessage':(frm, el)=>{
 
-              if (!player) return;
               if (!container) return;
 
               if (nnd.fontSize <= 0) nnd.fontSize = _defaultFontSize;
 
-              let maxLane = (Math.floor(playerRect.height / (nnd.fontSize+nnd.messageGap))) - 1,
+              let maxLane = (Math.floor((playerRect.height+nnd.messageGap) / (nnd.fontSize+nnd.messageGap))) - 1,
                   lane = 0;
 
               if (maxLane <= -1) {
@@ -339,16 +338,10 @@
               var opts = window.nnd;
 
               if (!container) {
-                let containers = document.getElementsByClassName("videochatContainer");
-                if (containers.length <= 0) return;
-                container = containers[0];
+                container = document.querySelector("#videochatContainer");
               }
 
-              if (!player) {
-                player = document.getElementById("videowrap");
-              }
-
-              if (!container || !player || playerRect.width <= 0 || playerRect.height <= 0) return;
+              if (!container || playerRect.width <= 0 || playerRect.height <= 0) return;
 
               if (opts.MAX < 1 || isNaN(parseInt(opts.MAX))) opts.MAX = window.nnd.MAX = 125;
               if (nnd._msgCount >= opts.MAX && opts.MAX >= 1) return;
@@ -423,7 +416,7 @@
               $('.head-NNDCSS-fontsize').remove();
               $('<style />', {
                   'class':'head-NNDCSS-fontsize',
-                  text:".videoText img, .videochatContainer .channel-emote {max-height: "+imageheight+"px!important;max-width: "+(imageheight*2)+"px!important;}"+
+                  text:".videoText img, #videochatContainer .channel-emote {max-height: "+imageheight+"px!important;max-width: "+(imageheight*2)+"px!important;}"+
                   ".videoText {font-size: "+fontsize+"px; line-height: "+fontsize+"px;}"
               }).appendTo('head');
             },
@@ -433,7 +426,7 @@
             }
         },
         '_msgCount': 0,
-        '_ver':'1.038'
+        '_ver':'1.0382'
     };
     
     //ignore messages sent by [server], [voteskip] and anything within CHANNEL.bots if defined
@@ -474,9 +467,9 @@
     }
 
 
-    //create .videochatContainer which is basically an invisible container element. this holds the chat messages that will be scrolling by
+    //create #videochatContainer which is basically an invisible container element. this holds the chat messages that will be scrolling by
     $('.embed-responsive').prepend($('<div/>', {
-        'class': 'videochatContainer'
+        'id': 'videochatContainer'
     }));
 
     nnd._fn.attachPlayerObserver();
