@@ -1,8 +1,7 @@
 /*
 - NND-style Chat script for Cytu.be
-- written by zeratul (github.com/zeratul0)
-- version 1.01
-- for v4c
+- written by biggles- (github.com/deerfarce)
+- version 1.02
 - (still in testing, some things will NOT work as they should)
 */
 
@@ -46,14 +45,70 @@
         'offsetType':0, //0: position based on fontsize and player height; 1: random %
         'fromRight':true, //move messages from right? if false, moves from left instead
         '_fn': {
-            'init':()=>{nnd['enabled'] = false;nnd['MAX'] = 100;nnd['offsetType'] = 0;nnd['fromRight'] = true;nnd._fn.updateModal();nnd._fn.save()},
-            'getopts':()=>{var tmp = {};for (var i in window.nnd) if (!(/^\_/).test(i)) tmp[i] = window.nnd[i]; return tmp},
-            'save':()=>localStorage.setItem(CHANNEL.name + '_nndOptions', JSON.stringify(window.nnd._fn.getopts())),
-            'load':()=>{var tmp = JSON.parse(localStorage.getItem(CHANNEL.name+'_nndOptions'));if (tmp === null || tmp === undefined) {nnd._fn.init();console.debug('NND settings not found, using defaults and saving them');return}else {for (var i in tmp) {if (nnd.hasOwnProperty(i) && !(/^\_/).test(i)) nnd[i] = tmp[i]}nnd._fn.save();nnd._fn.updateModal()}},
-            'updateModal':()=>{$('#nnd-enable').prop('checked', nnd.enabled);$('#nnd-offsettype-' + nnd.offsetType).prop('checked', true);$('#nnd-fromright-' + nnd.fromRight).prop('checked', true);$('#nnd-maxmsgs').attr('placeholder', nnd.MAX); $('#nnd-maxmsgs').val(nnd.MAX)},
-            'saveFromModal':()=>{nnd['enabled'] = $('#nnd-enable').prop('checked'); if (!nnd['enabled']) $('.videoText').remove(); if ($('#nnd-offsettype-0').prop('checked')) nnd['offsetType'] = 0; else if ($('#nnd-offsettype-1').prop('checked')) nnd['offsetType'] = 1; if ($('#nnd-fromright-true').prop('checked')) nnd['fromRight'] = true; else if ($('#nnd-fromright-false').prop('checked')) nnd['fromRight'] = false; if (!isNaN(parseInt($('#nnd-maxmsgs').val())) && parseInt($('#nnd-maxmsgs').val()) >= 1) {var x = parseInt($('#nnd-maxmsgs').val()); nnd['MAX'] = x; $('#nnd-maxmsgs').attr('placeholder', x);$('#nnd-maxmsgs').val(x)} else {$('#nnd-maxmsgs').val(nnd['MAX']); $('#nnd-maxmsg').attr('placeholder', nnd['MAX'])} nnd._fn.save()}
+            'init':()=>{
+              nnd['enabled'] = false;
+              nnd['MAX'] = 100;
+              nnd['offsetType'] = 0;
+              nnd['fromRight'] = true;
+              nnd._fn.updateModal();
+              nnd._fn.save()
+            },
+            'getopts':()=>{
+              var tmp = {};
+              for (var i in window.nnd)
+                if (!(/^\_/).test(i))
+                  tmp[i] = window.nnd[i];
+              return tmp;
+            },
+            'save':()=>
+              localStorage.setItem(CHANNEL.name + '_nndOptions', JSON.stringify(window.nnd._fn.getopts())),
+            'load':()=>{
+              var tmp = JSON.parse(localStorage.getItem(CHANNEL.name+'_nndOptions'));
+              if (tmp === null || tmp === undefined) {
+                nnd._fn.init();
+                console.debug('NND settings not found, using defaults and saving them');
+                return;
+              } else {
+                for (var i in tmp) {
+                  if (nnd.hasOwnProperty(i) && !(/^\_/).test(i))
+                    nnd[i] = tmp[i];
+                }
+                nnd._fn.save();
+                nnd._fn.updateModal();
+              }
+            },
+            'updateModal':()=>{
+              $('#nnd-enable').prop('checked', nnd.enabled);
+              $('#nnd-offsettype-' + nnd.offsetType).prop('checked', true);
+              $('#nnd-fromright-' + nnd.fromRight).prop('checked', true);
+              $('#nnd-maxmsgs').attr('placeholder', nnd.MAX);
+              $('#nnd-maxmsgs').val(nnd.MAX)
+            },
+            'saveFromModal':()=>{
+              nnd['enabled'] = $('#nnd-enable').prop('checked');
+              if (!nnd['enabled'])
+                $('.videoText').remove();
+              
+              if ($('#nnd-offsettype-0').prop('checked'))
+                nnd['offsetType'] = 0;
+              else if ($('#nnd-offsettype-1').prop('checked'))
+                nnd['offsetType'] = 1;
+              
+              nnd['fromRight'] = $('#nnd-fromright-true').prop('checked');
+              
+              if (!isNaN(parseInt($('#nnd-maxmsgs').val())) && parseInt($('#nnd-maxmsgs').val()) >= 1) {
+                var x = parseInt($('#nnd-maxmsgs').val());
+                nnd['MAX'] = x;
+                $('#nnd-maxmsgs').attr('placeholder', x);
+                $('#nnd-maxmsgs').val(x)
+              } else {
+                $('#nnd-maxmsgs').val(nnd['MAX']);
+                $('#nnd-maxmsg').attr('placeholder', nnd['MAX']);
+              }
+              nnd._fn.save();
+            }
         },
-        '_ver':'1.01'
+        '_ver':'1.02'
     };
 
     //init: sets the window's nnd options to their defaults, then calls _fn.updateModal and _fn.save
@@ -84,10 +139,10 @@
     $('#main').on('transitionend', '.videochatContainer .videoText', function() {$(this).remove()});
 
     //attach addScrollingMessage to the chatMsg socket event
-    //ignore messages sent by [server] and, because this was initially made for /r/v4c, v4cbot as well
+    //ignore messages sent by [server] and anything within CHANNEL.bots if defined
     socket.on('chatMsg', function(data) {
         if (IGNORED.indexOf(data.username) > -1) return;
-        if (window.nnd.enabled && data.username.toLowerCase() !== '[server]' && data.username.toLowerCase() !== 'v4cbot') {
+        if (window.nnd.enabled && data.username.toLowerCase() !== '[server]' && (!CHANNEL.hasOwnProperty("bots") || (Array.isArray(CHANNEL.bots) && !~CHANNEL.bots.indexOf(data.username)))) {
             if (!data.meta['addClass'])
                 data.meta['addClass'] = '';
             addScrollingMessage(data.msg, data.meta.addClass);
@@ -97,7 +152,13 @@
     //save user's settings on page unload so they are persistent
     $(window).unload(function() {window.nnd._fn.save()});
     
-    console.debug('LOADED: NND-style Chat script for Cytu.be written by zeratul. Version '+nnd._ver);
+    $(document).on("visibilitychange", function() {
+      if (document.visibilityState !== "visible") {
+        $('.videoText').remove();
+      }
+    });
+    
+    console.debug('LOADED: NND-style Chat script for Cytu.be written by biggles-. Version '+nnd._ver);
 
 })();
 
@@ -108,7 +169,7 @@ function addScrollingMessage(message, extraClass) {
     if (typeof window.nnd === "undefined") return;
     var opts = window.nnd;
     if (opts.MAX < 1 || isNaN(parseInt(opts.MAX))) opts.MAX = window.nnd.MAX = 100;
-    if (opts.enabled && $('#ytapiplayer')[0]) {
+    if (opts.enabled && $('#ytapiplayer')[0] && document.visibilityState === "visible") {
         if (message !== null && typeof message === "string" && message.length > 0 && !(/^\$/.test(message))) {
             var topOffset = "0px";
             var frm = 'right';
