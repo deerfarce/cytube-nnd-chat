@@ -1,6 +1,6 @@
 /*
 - Niconico Chat script for cytu.be
-- version 1.0382
+- version 1.0383
 - (still in testing, some things will NOT work as they should)
 */
 
@@ -67,13 +67,12 @@
               socket.off('chatMsg', onChatMsg);
               nnd._fn.removeAll();
               $('#videochatContainer').remove();
-              
-              nnd._fn.attachPlayerObserver();
 
               nnd._fn.setupCSS();
               $('.embed-responsive').prepend($('<div/>', {
                   'id': 'videochatContainer'
               }));
+              nnd._fn.attachPlayerObserver();
               socket.on('chatMsg', onChatMsg);
 
               if (!silent) {
@@ -426,7 +425,7 @@
             }
         },
         '_msgCount': 0,
-        '_ver':'1.0382'
+        '_ver':'1.0383'
     };
     
     //ignore messages sent by [server], [voteskip] and anything within CHANNEL.bots if defined
