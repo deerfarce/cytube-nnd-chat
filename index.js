@@ -106,9 +106,9 @@
 function addScrollingMessage(message, extraClass) {
     if (typeof window.nnd === "undefined") return;
     var opts = window.nnd;
-    if (opts.MAX < 1 || isNaN(parseInt(opts.MAX))) opts.MAX = window.nnd.MAX = 100
+    if (opts.MAX < 1 || isNaN(parseInt(opts.MAX))) opts.MAX = window.nnd.MAX = 100;
     if (opts.enabled && $('#ytapiplayer')[0]) {
-        if (message !== null && typeof message === "string" && message.length > 0 && !(/(^\$|\<|\>|\"|\')/.test(message))) {
+        if (message !== null && typeof message === "string" && message.length > 0 && !(/^\$/.test(message))) {
             var topOffset = "0px";
             var frm = 'right';
             if (message.length > 240) message = message.substring(0,240);
