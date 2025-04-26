@@ -180,7 +180,7 @@
     //ignore messages sent by [server] and anything within CHANNEL.bots if defined
     socket.on('chatMsg', function(data) {
         if (IGNORED.indexOf(data.username) > -1) return;
-        if (window.nnd.enabled && data.username.toLowerCase() !== '[server]' && (!CHANNEL.hasOwnProperty("bots") || (Array.isArray(CHANNEL.bots) && !~CHANNEL.bots.indexOf(data.username)))) {
+        if (window.nnd.enabled && data.time >= Date.now() - 2000 && data.username.toLowerCase() !== '[server]' && (!CHANNEL.hasOwnProperty("bots") || (Array.isArray(CHANNEL.bots) && !~CHANNEL.bots.indexOf(data.username)))) {
             if (!data.meta['addClass'])
                 data.meta['addClass'] = '';
             addScrollingMessage(data.msg, data.meta.addClass);
