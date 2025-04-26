@@ -1,7 +1,7 @@
 /*
 - Niconico Chat script for cytu.be
 - https://github.com/deerfarce/cytube-nnd-chat
-- version 1.035
+- version 1.037
 - (still in testing, some things will NOT work as they should)
 */
 
@@ -19,6 +19,10 @@
           text:".videoText img, .videochatContainer .channel-emote {max-height: "+imageheight+"px!important;max-width: "+(imageheight*2)+"px!important;}"+
           ".videoText {font-size: "+fontsize+"px}"
       }).appendTo('head');
+    }
+
+    function offsetRight(parent, el) {
+      return parent.offsetWidth - el.offsetWidth - el.offsetLeft;
     }
 
     //remove previous NND CSS elements if they exist
@@ -42,8 +46,9 @@
             "#nndSettingsWrap #nnd-maxmsgs, #nndSettingsWrap #nnd-fontsize, #nndSettingsWrap #nnd-imageheight {margin: 10px 0;width: 100px;}"+
             ".modal-subheader {font-size: 16px;border-bottom: 1px solid #212123;margin-left: -10px;padding: 10px 0 0 2px}"+
             "#nndSettingsModal .subfooter {text-align: center;position: absolute;right: 0;left: 0;pointer-events: none;color: #757575;bottom: 12px;display: inline-block;}"+
-            "#nndSettingsModal .subfooter .by {padding-right: 10px;border-right: 1px solid #252525;pointer-events: all;}"+
-            "#nndSettingsModal .subfooter .ver {padding-left: 10px;border-left: 1px solid #4e4e4e}"+
+            "#nndSettingsModal .subfooter > * {border-right: 1px solid rgba(0,0,0,0.48);pointer-events: none;padding: 0px 8px;border-left: 1px solid rgba(255,255,255,0.22);}"+
+            "#nndSettingsModal .subfooter a {pointer-events:all;}"+
+            "#nndSettingsModal .subfooter > *:first-child {border-left:0!important;} #nndSettingsModal .subfooter > *:last-child {border-right:0!important;}"+
             "#nndSettingsModal .radio, #nndSettingsModal .modal-option > input {margin-left: 35px!important;}"+
             "#nndSettingsModal .radio, #nndSettingsModal .checkbox, #nndSettingsModal .modal-option > input {margin-top: 4px!important;margin-bottom: 4px!important;}"+
             "#nnd-opacity-value {color: #8f9cad;}"+
@@ -94,7 +99,7 @@
               return tmp;
             },
             'save':()=>{
-              if (!nnd.enabled) $('.videoText').remove();
+              if (!nnd.enabled) {nnd._fn.removeAll();}
               localStorage.setItem(CHANNEL.name.toLowerCase() + '_nndOptions', JSON.stringify(window.nnd._fn.getopts()));
             },
             'load':()=>{
@@ -133,8 +138,9 @@
               nnd['enabled'] = $('#nnd-enable').prop('checked');
               nnd['displayImages'] = $('#nnd-displayimages').prop('checked');
 
-              if (!nnd['enabled'])
-                $('.videoText').remove();
+              if (!nnd['enabled']) {
+                nnd._fn.removeAll();
+              }
 
               nnd['discardWhenFull'] = $('#nnd-discardwhenfull').prop('checked');
               nnd['opacity'] = parseFloat($('#nnd-opacity').val());
@@ -148,7 +154,7 @@
 
               let oldFrom = nnd['fromRight'];
               nnd['fromRight'] = $('#nnd-fromright-true').prop('checked');
-              if (nnd.fromRight !== oldFrom) $('.videoText').remove();
+              if (nnd.fromRight !== oldFrom) {nnd._fn.removeAll();}
 
               nnd._fn.validateAndSetValue('MAX', $('#nnd-maxmsgs'), 1, 125);
               nnd._fn.validateAndSetValue('fontSize', $('#nnd-fontsize'), 1, _defaultFontSize);
@@ -165,17 +171,24 @@
                   text:".videoText {opacity:" + (nnd.opacity/100) + ";}"
               }).appendTo('head');
             },
-            'placeMessage':(frm, el)=>{
+            'placeMessage':(frm, player, container, el)=>{
+              container.appendChild(el);
+
+              el.addEventListener("transitionend", function() {
+                this.remove();
+                if (nnd._msgCount > 0)
+                  nnd._msgCount--;
+              }, {once: true});
+
               if (nnd.fontSize <= 0) nnd.fontSize = _defaultFontSize;
-              let player = $('#ytapiplayer');
-              let maxLane = (Math.floor(player.height() / nnd.fontSize)) - 1,
+              let maxLane = (Math.floor(player.clientHeight / nnd.fontSize)) - 1,
                   lane = 0,
-                  playerWidth = player.width(),
-                  thisWidth = el.width();
+                  playerWidth = player.clientWidth,
+                  thisWidth = el.clientWidth;
 
-              if ($('.videoText').length <= 0) {
+              if (nnd._msgCount <= 0) {
 
-                if (nnd.offsetType === 1) {
+                if (nnd.offsetType === 0) {
                   lane = Math.floor(Math.random() * (maxLane + 1));
                 }
 
@@ -183,13 +196,14 @@
 
                 let msgs = [];
 
-                if (nnd.offsetType === 1) {//RANDOM
+                if (nnd.offsetType === 0) {//RANDOM
 
                   let openLanes = [];
 
                   for (;lane <= maxLane; lane++) {
-                    msgs = $('.videoText[lane=' + lane + ']').last();
-                    if (msgs.length <= 0 || !nnd._fn.willCollide(thisWidth, msgs, parseFloat(msgs.css(frm)), playerWidth)) {
+                    msgs = document.getElementsByClassName("nn-lane-" + lane);
+
+                    if (msgs.length <= 0 || !nnd._fn.willCollide(thisWidth, msgs[msgs.length-1], (frm==='right'?offsetRight(container,msgs[msgs.length-1]):msgs[msgs.length-1].offsetLeft), playerWidth)) {
                       openLanes.push(lane);
                       continue;
                     }
@@ -209,13 +223,13 @@
                     allFull = false;
 
                   for (;lane <= maxLane; lane++) {
-                    msgs = $('.videoText[lane=' + lane + ']').last();
+                    msgs = document.getElementsByClassName("nn-lane-" + lane);
                     if (msgs.length <= 0) break;
                     else {
 
-                      let offset = parseFloat(msgs.css(frm));
+                      let offset = (frm==='right'?offsetRight(container,msgs[msgs.length-1]):msgs[msgs.length-1].offsetLeft);
 
-                      if (!nnd._fn.willCollide(thisWidth, msgs, offset, playerWidth)) break;
+                      if (!nnd._fn.willCollide(thisWidth, msgs[msgs.length-1], offset, playerWidth)) break;
 
                       if (furthestLaneGap >= 0 || offset > furthestLaneGap) {
                         furthestLane = lane;
@@ -233,54 +247,70 @@
                 }
               }
 
-              el.css('top', (nnd.fontSize * lane) + 'px');
-              el.attr('lane', lane);
-              el.css(frm, (0 - thisWidth)+'px');
-              el.addClass('moving');
-              el.css('visibility', 'visible');
-              el.css(frm, player.width()+'px');
+              nnd._msgCount++;
+              el.style.top = (nnd.fontSize * lane) + 'px';
+              el.classList.add('nn-lane-' + lane);
+              el.style[frm] = (0 - thisWidth) + 'px';
+              el.classList.add('moving');
+              requestAnimationFrame(function() {
+                el.style.visibility = 'visible';
+                el.style[frm] = player.clientWidth + 'px';
+              });
             },
             'addScrollingMessage':(message, extraClass)=>{
               if (typeof window.nnd === "undefined") return;
               var opts = window.nnd;
+              var container = document.getElementsByClassName("videochatContainer");
+              var player = document.getElementById("ytapiplayer");
+              if (container.length <= 0 || !player) return;
+              container = container[0];
               if (opts.MAX < 1 || isNaN(parseInt(opts.MAX))) opts.MAX = window.nnd.MAX = 125;
-              if ($('.videoText').length >= opts.MAX && opts.MAX >= 1) return;
+              if (nnd._msgCount >= opts.MAX && opts.MAX >= 1) return;
               if (opts.offsetType < 0 || opts.offsetType > 1) {
                   console.error('NNDchat: Unknown offsetType '+opts.offsetType+', reverting to 0');
                   window.nnd.offsetType = 0;
               }
-              if (opts.enabled && $('#ytapiplayer')[0] && document.visibilityState === "visible") {
-                  if (message !== null && typeof message === "string" && message.length > 0 && !(/^(?:\<.+?\>)?[\$\!]/.test(message))) {
+              if (opts.enabled && document.visibilityState === "visible") {
+                  if (message !== null && typeof message === "string" && message.length > 0 && !(/^(?:\<.+?\>)?[\uD83E\uDD16\$\!]/.test(message))) {
 
                       var frm = 'right';
                       if (!opts.fromRight) frm = 'left';
 
-                      var $txt = $('<div/>', {'class': 'videoText '+extraClass, style: 'visibility: hidden;'}).append(message);
+                      let txt = document.createElement("div");
+                      txt.classList.add('videoText');
+                      if (extraClass && extraClass.length > 0)
+                        txt.classList.add(extraClass);
+                      txt.style.visibility = "hidden";
+                      txt.innerHTML = message;
 
-
-                      var imgs = $txt.find("img"),
+                      var imgs = txt.getElementsByTagName("img"),
                         loadedImgs = 0;
 
-                      if (!opts.displayImages) imgs.remove();
-                      if ($txt.html().trim() === "") return;
-                      $('.videochatContainer').append($txt);
+                      for (var i = imgs.length - 1; i >= 0; --i) {
+                        if (!opts.displayImages)
+                          imgs[i].remove();
+                        else {
+                          imgs[i].onload = function() {
+                            loadedImgs++;
+                            if (loadedImgs >= imgs.length) opts._fn.placeMessage(frm, player, container, txt);
+                          }
+                        }
+                      }
+                      if (txt.innerHTML.trim() === "") return;
 
                       if (imgs.length <= 0) {
-                        opts._fn.placeMessage(frm, $txt);
-                      } else {
-                        imgs.on("load", function() {
-                          loadedImgs++;
-                          if (loadedImgs >= imgs.length) opts._fn.placeMessage(frm, $txt);
-                        })
+                        opts._fn.placeMessage(frm, player, container, txt);
                       }
 
                   }
               } else return;
             },
             'willCollide':(nWidth, targetMsg, targetOffset, playerWidth)=>{
-              let tWidth = targetMsg.width();
+              let tWidth = targetMsg.clientWidth;
+              //console.log("nWidth: " + nWidth + " // tWidth: " + tWidth + " // playerWidth: " + playerWidth + " // targetOffset: " + targetOffset);
               if (nWidth <= tWidth) return targetOffset < 0;
               let delta = (playerWidth - targetOffset) / nnd._fn.getSpeed(tWidth, playerWidth);
+              //console.log("delta: " + delta);
               return (delta * nnd._fn.getSpeed(nWidth, playerWidth)) >= playerWidth;
             },
             'getSpeed':(elWidth, playerWidth)=>{
@@ -297,9 +327,14 @@
               }
               modalEl.attr('placeholder', nnd[valName]);
               modalEl.val(nnd[valName]);
+            },
+            'removeAll':()=>{
+              $('.videoText').remove();
+              nnd._msgCount = 0;
             }
         },
-        '_ver':'1.035'
+        '_msgCount': 0,
+        '_ver':'1.037'
     };
 
     //init: sets the window's nnd options to their defaults, then calls _fn.updateModal and _fn.save
@@ -310,7 +345,7 @@
     //saveFromModal: sets the current window's nnd object properties based on the options selected in the modal window, and calls _fn.save
 
     //create modal element, insert before #pmbar
-    $('<div class="fade modal"id=nndSettingsModal aria-hidden=true role=dialog style=display:none tabindex=-1><div class=modal-dialog><div class=modal-content><div class=modal-header><button class=close data-dismiss=modal aria-hidden=true>×</button><h4>Niconico Chat Settings [<span id=modal-nnd-roomname>'+CHANNEL.name+'</span>]</h4></div><div class=modal-body id=nndSettingsWrap><div class=modal-option><div class=checkbox><label for=nnd-enable><input id=nnd-enable type=checkbox> Enable Niconico Chat</label><div class=modal-caption>Enable Niconico-style chat messages. Places chat messages on the currently playing video and scrolls them to the opposite side.</div></div></div><div class=modal-option><div class=checkbox><label for=nnd-displayimages><input id=nnd-displayimages type=checkbox> Display Images and Emotes</label><div class=modal-caption>Show images in Niconico messages.</div></div></div><div class="modal-option"><div class="checkbox"><label for="nnd-discardwhenfull"><input id="nnd-discardwhenfull" type="checkbox"> Discard New Messages When Full</label><div class="modal-caption">If checked, new messages will be ignored if there\'s no room for them. Otherwise, when there\'s no room, it will essentially be placed on a random line regardless of overlaps.</div></div></div><div class="modal-option"><div class="slider"><label for="nnd-opacity"> Opacity <span id="nnd-opacity-value">70%</span><input id="nnd-opacity" min="0" max="100" type="range"></label><div class="modal-caption">Controls transparency of messages. Default 70%.</div></div></div><div class=modal-option><div class=modal-subheader> Message Order</div><div class=modal-caption>Determines the order in which new messages are placed, as long as there is enough room.</div><div class=radio><label for=nnd-offsettype-0><input id=nnd-offsettype-0 type=radio name=offsettype> Top to Bottom whenever possible</label><br><label for=nnd-offsettype-1><input id=nnd-offsettype-1 type=radio name=offsettype> Random</label></div></div><div class=modal-option><div class=modal-subheader>Message Direction</div><div class=modal-caption>Determines where new messages will start and end.</div><div class=radio><label for=nnd-fromright-true><input id=nnd-fromright-true type=radio name=fromright> from Right to Left</label><br><label for=nnd-fromright-false><input id=nnd-fromright-false type=radio name=fromright> from Left to Right</label></div></div><div class=modal-option><div class=modal-subheader>Maximum Messages</div><div class=modal-caption>Maximum amount of messages allowed on screen at once. New messages will be ignored if this many are on screen. A large amount of messages may cause lag. Default 125.</div><input id=nnd-maxmsgs type=text class=form-control placeholder=125></div><div class="modal-option"><div class="modal-subheader">Message Size</div><div class="modal-caption">Sizes of all text and images in Niconico messages. Max image width is always twice the max image height. If you want to avoid vertical image overlap, make sure Max Image Height is the same as or less than Font Size.</div><div class="modal-group"><div class="modal-caption">Font Size (px, default '+_defaultFontSize+') </div><input id="nnd-fontsize" type="text" class="form-control" placeholder="'+_defaultFontSize+'"></div><div class="modal-group"><div class="modal-caption">Max Image Height (px, default '+_defaultImageHeight+')</div><input id="nnd-imageheight" type="text" class="form-control" placeholder="'+_defaultImageHeight+'"></div></div></div><div class=modal-footer><div class=left-warning>Settings are not applied until you click Save.</div><button class="btn btn-primary"data-dismiss=modal type=button onclick=nnd._fn.saveFromModal()>Save</button> <button class="btn btn-primary"data-dismiss=modal type=button onclick=nnd._fn.updateModal()>Close</button><div class="subfooter"><a class="by" href="https://github.com/deerfarce/cytube-nnd-chat" target="_blank" rel="noreferrer noopener">github</a><span class="ver">version '+nnd._ver+'</span></div></div></div></div></div>').insertBefore('#pmbar');
+    $('<div class="fade modal"id=nndSettingsModal aria-hidden=true role=dialog style=display:none tabindex=-1><div class=modal-dialog><div class=modal-content><div class=modal-header><button class=close data-dismiss=modal aria-hidden=true>×</button><h4>Niconico Chat Settings [<span id=modal-nnd-roomname>'+CHANNEL.name+'</span>]</h4></div><div class=modal-body id=nndSettingsWrap><div class=modal-option><div class=checkbox><label for=nnd-enable><input id=nnd-enable type=checkbox> Enable Niconico Chat</label><div class=modal-caption>Enable Niconico-style chat messages. Places chat messages on the currently playing video and scrolls them to the opposite side.</div></div></div><div class=modal-option><div class=checkbox><label for=nnd-displayimages><input id=nnd-displayimages type=checkbox> Display Images and Emotes</label><div class=modal-caption>Show images in Niconico messages.</div></div></div><div class="modal-option"><div class="checkbox"><label for="nnd-discardwhenfull"><input id="nnd-discardwhenfull" type="checkbox"> Discard New Messages When Full</label><div class="modal-caption">If checked, new messages will be ignored if there\'s no room for them. Otherwise, when there\'s no room, it will essentially be placed on a random line regardless of overlaps.</div></div></div><div class="modal-option"><div class="slider"><label for="nnd-opacity"> Opacity <span id="nnd-opacity-value">70%</span><input id="nnd-opacity" min="0" max="100" type="range"></label><div class="modal-caption">Controls transparency of messages. Default 70%.</div></div></div><div class=modal-option><div class=modal-subheader> Message Order</div><div class=modal-caption>Determines the order in which new messages are placed, as long as there is enough room.</div><div class=radio><label for=nnd-offsettype-0><input id=nnd-offsettype-0 type=radio name=offsettype> Random </label><br><label for=nnd-offsettype-1><input id=nnd-offsettype-1 type=radio name=offsettype> Top to Bottom </label></div></div><div class=modal-option><div class=modal-subheader>Message Direction</div><div class=modal-caption>Determines where new messages will start and end.</div><div class=radio><label for=nnd-fromright-true><input id=nnd-fromright-true type=radio name=fromright> from Right to Left</label><br><label for=nnd-fromright-false><input id=nnd-fromright-false type=radio name=fromright> from Left to Right</label></div></div><div class=modal-option><div class=modal-subheader>Maximum Messages</div><div class=modal-caption>Maximum amount of messages allowed on screen at once. New messages will be ignored if this many are on screen. A large amount of messages may cause lag. Default 125.</div><input id=nnd-maxmsgs type=text class=form-control placeholder=125></div><div class="modal-option"><div class="modal-subheader">Message Size</div><div class="modal-caption">Sizes of all text and images in Niconico messages. Max image width is always twice the max image height. If you want to avoid vertical image overlap, make sure Max Image Height is the same as or less than Font Size.</div><div class="modal-group"><div class="modal-caption">Font Size (px, default '+_defaultFontSize+') </div><input id="nnd-fontsize" type="text" class="form-control" placeholder="'+_defaultFontSize+'"></div><div class="modal-group"><div class="modal-caption">Max Image Height (px, default '+_defaultImageHeight+')</div><input id="nnd-imageheight" type="text" class="form-control" placeholder="'+_defaultImageHeight+'"></div></div></div><div class=modal-footer><div class=left-warning>Settings are not applied until you click Save.</div><button class="btn btn-primary"data-dismiss=modal type=button onclick=nnd._fn.saveFromModal()>Save</button> <button class="btn btn-primary"data-dismiss=modal type=button onclick=nnd._fn.updateModal()>Close</button><div class="subfooter"><span class="by">made by biggles-</span><a href="https://github.com/deerfarce/cytube-nnd-chat" target="_blank" rel="noreferrer noopener">github</a><span class="ver">version '+nnd._ver+'</span></div></div></div></div></div>').insertBefore('#pmbar');
 
     //load the user's options then update the modal element
     nnd._fn.load();
@@ -336,10 +371,6 @@
         'class': 'videochatContainer'
     }));
 
-    //once the message reaches the end of its CSS transition, remove it.
-    //attached to #main just in case something happens with the container
-    $('#main').on('transitionend', '.videochatContainer .videoText', function() {$(this).remove()});
-
     //attach addScrollingMessage to the chatMsg socket event
     //ignore messages sent by [server], [voteskip] and anything within CHANNEL.bots if defined
     socket.on('chatMsg', function(data) {
@@ -361,7 +392,7 @@
 
     $(document).on("visibilitychange", function() {
       if (document.visibilityState !== "visible") {
-        $('.videoText').remove();
+        nnd._fn.removeAll();
       }
     });
 
@@ -369,7 +400,7 @@
       let staleMessages = $('.videoText');
       if (staleMessages.length > 0) {
         setTimeout(function() {
-          staleMessages.each(function(i,e) {e.remove()});
+          staleMessages.each(function(i,e) {e.remove(); if (nnd._msgCount > 0) nnd._msgCount--;});
         }, 7500);
       }
     }, 2500);
