@@ -1,7 +1,7 @@
 /*
 - NND-style Chat script for Cytu.be
 - written by zeratul (github.com/zeratul0)
-- version 1.0
+- version 1.01
 - for v4c
 - (still in testing, some things will NOT work as they should)
 */
@@ -53,7 +53,7 @@
             'updateModal':()=>{$('#nnd-enable').prop('checked', nnd.enabled);$('#nnd-offsettype-' + nnd.offsetType).prop('checked', true);$('#nnd-fromright-' + nnd.fromRight).prop('checked', true);$('#nnd-maxmsgs').attr('placeholder', nnd.MAX); $('#nnd-maxmsgs').val(nnd.MAX)},
             'saveFromModal':()=>{nnd['enabled'] = $('#nnd-enable').prop('checked'); if (!nnd['enabled']) $('.videoText').remove(); if ($('#nnd-offsettype-0').prop('checked')) nnd['offsetType'] = 0; else if ($('#nnd-offsettype-1').prop('checked')) nnd['offsetType'] = 1; if ($('#nnd-fromright-true').prop('checked')) nnd['fromRight'] = true; else if ($('#nnd-fromright-false').prop('checked')) nnd['fromRight'] = false; if (!isNaN(parseInt($('#nnd-maxmsgs').val())) && parseInt($('#nnd-maxmsgs').val()) >= 1) {var x = parseInt($('#nnd-maxmsgs').val()); nnd['MAX'] = x; $('#nnd-maxmsgs').attr('placeholder', x);$('#nnd-maxmsgs').val(x)} else {$('#nnd-maxmsgs').val(nnd['MAX']); $('#nnd-maxmsg').attr('placeholder', nnd['MAX'])} nnd._fn.save()}
         },
-        '_ver':'1.0'
+        '_ver':'1.01'
     };
 
     //init: sets the window's nnd options to their defaults, then calls _fn.updateModal and _fn.save
@@ -86,6 +86,7 @@
     //attach addScrollingMessage to the chatMsg socket event
     //ignore messages sent by [server] and, because this was initially made for /r/v4c, v4cbot as well
     socket.on('chatMsg', function(data) {
+        if (IGNORED.indexOf(data.username) > -1) return;
         if (window.nnd.enabled && data.username.toLowerCase() !== '[server]' && data.username.toLowerCase() !== 'v4cbot') {
             if (!data.meta['addClass'])
                 data.meta['addClass'] = '';
